@@ -1,0 +1,32 @@
+const run_Setup_Once = trigger({
+  type: 'n8n-nodes-base.manualTrigger',
+  version: 1,
+  config: { name: 'Run Setup Once', notes: 'Run this workflow once to create the data tables and the default configuration row.', notesInFlow: true }
+});
+
+const create_Config_Table = node({
+  type: 'n8n-nodes-base.dataTable',
+  version: 1.1,
+  config: { name: 'Create Config Table', parameters: { resource: 'table', operation: 'create', tableName: 'Prospection Config', columns: { column: [{ name: 'active', type: 'boolean' }, { name: 'testMode', type: 'boolean' }, { name: 'testEmail', type: 'string' }, { name: 'offer', type: 'string' }, { name: 'targetDescription', type: 'string' }, { name: 'decisionMakerRoles', type: 'string' }, { name: 'searchCountry', type: 'string' }, { name: 'senderName', type: 'string' }, { name: 'senderTitle', type: 'string' }, { name: 'senderWebsite', type: 'string' }, { name: 'dailyLimit', type: 'number' }, { name: 'searchQueries', type: 'number' }, { name: 'minScore', type: 'number' }] }, options: { createIfNotExists: true } }, position: [220, 0], notes: 'Creates the single-row configuration table (offer, target, sender, limits, kill switch).', notesInFlow: true }
+});
+
+const create_Prospects_Table = node({
+  type: 'n8n-nodes-base.dataTable',
+  version: 1.1,
+  config: { name: 'Create Prospects Table', parameters: { resource: 'table', operation: 'create', tableName: 'Prospection Prospects', columns: { column: [{ name: 'domain', type: 'string' }, { name: 'companyName', type: 'string' }, { name: 'websiteUrl', type: 'string' }, { name: 'status', type: 'string' }, { name: 'reason', type: 'string' }, { name: 'score', type: 'number' }, { name: 'summary', type: 'string' }, { name: 'contactName', type: 'string' }, { name: 'contactTitle', type: 'string' }, { name: 'email', type: 'string' }, { name: 'emailStatus', type: 'string' }, { name: 'sentTo', type: 'string' }, { name: 'subject', type: 'string' }, { name: 'email1', type: 'string' }, { name: 'followUp1', type: 'string' }, { name: 'followUp2', type: 'string' }, { name: 'threadId', type: 'string' }, { name: 'lastMessageId', type: 'string' }, { name: 'firstSentAt', type: 'string' }, { name: 'lastActionAt', type: 'string' }, { name: 'sentCount', type: 'number' }, { name: 'testMode', type: 'boolean' }] }, options: { createIfNotExists: true } }, position: [440, 0], notes: 'Creates the prospects table. One row per company domain, so a company is never processed or contacted twice.', notesInFlow: true }
+});
+
+const insert_Default_Config = node({
+  type: 'n8n-nodes-base.dataTable',
+  version: 1.1,
+  config: { name: 'Insert Default Config', parameters: { resource: 'row', operation: 'insert', dataTableId: { __rl: true, mode: 'id', value: expr('{{ $(\'Create Config Table\').first().json.id }}') }, columns: { mappingMode: 'defineBelow', value: { active: true, testMode: true, testEmail: 'vpilioua@eugeniaschool.com', offer: 'A REMPLIR : ce que vous vendez, a qui, et le benefice principal en 2-3 phrases.', targetDescription: 'Startups et PME B2B (SaaS, tech, agences) de 5 a 200 salaries basees en France.', decisionMakerRoles: 'ceo, fondateur, founder, co-founder, cofondateur, directeur general, coo, cto, head of sales, directeur commercial', searchCountry: 'FR', senderName: 'A REMPLIR', senderTitle: 'A REMPLIR', senderWebsite: '', dailyLimit: 20, searchQueries: 5, minScore: 60 }, schema: [{ id: 'active', displayName: 'active', required: false, defaultMatch: false, display: true, type: 'boolean', canBeUsedToMatch: true }, { id: 'testMode', displayName: 'testMode', required: false, defaultMatch: false, display: true, type: 'boolean', canBeUsedToMatch: true }, { id: 'testEmail', displayName: 'testEmail', required: false, defaultMatch: false, display: true, type: 'string', canBeUsedToMatch: true }, { id: 'offer', displayName: 'offer', required: false, defaultMatch: false, display: true, type: 'string', canBeUsedToMatch: true }, { id: 'targetDescription', displayName: 'targetDescription', required: false, defaultMatch: false, display: true, type: 'string', canBeUsedToMatch: true }, { id: 'decisionMakerRoles', displayName: 'decisionMakerRoles', required: false, defaultMatch: false, display: true, type: 'string', canBeUsedToMatch: true }, { id: 'searchCountry', displayName: 'searchCountry', required: false, defaultMatch: false, display: true, type: 'string', canBeUsedToMatch: true }, { id: 'senderName', displayName: 'senderName', required: false, defaultMatch: false, display: true, type: 'string', canBeUsedToMatch: true }, { id: 'senderTitle', displayName: 'senderTitle', required: false, defaultMatch: false, display: true, type: 'string', canBeUsedToMatch: true }, { id: 'senderWebsite', displayName: 'senderWebsite', required: false, defaultMatch: false, display: true, type: 'string', canBeUsedToMatch: true }, { id: 'dailyLimit', displayName: 'dailyLimit', required: false, defaultMatch: false, display: true, type: 'number', canBeUsedToMatch: true }, { id: 'searchQueries', displayName: 'searchQueries', required: false, defaultMatch: false, display: true, type: 'number', canBeUsedToMatch: true }, { id: 'minScore', displayName: 'minScore', required: false, defaultMatch: false, display: true, type: 'number', canBeUsedToMatch: true }] } }, position: [640, 0], notes: 'Inserts the default configuration. Test mode is on: every email goes to testEmail until you switch testMode to false.', notesInFlow: true, executeOnce: true }
+});
+
+const wf = workflow('4NUugz9gr85vJwrO', 'Prospection Setup', { executionOrder: 'v1', binaryMode: 'separate', availableInMCP: true, description: 'One-time setup: creates the prospecting data tables and the default configuration row.' });
+
+export default wf
+  .add(sticky('## Setup (a lancer une seule fois)\nCree les Data Tables **Prospection Config** et **Prospection Prospects**, puis la ligne de configuration par defaut.\n\nEnsuite, modifiez la config directement dans l\'onglet **Data tables** de n8n (offre, cible, signature, mode test, plafond).', [], { name: 'Sticky Note', color: 2, width: 520, height: 220, position: [0, -280] }))
+  .add(run_Setup_Once)
+  .to(create_Config_Table)
+  .to(create_Prospects_Table)
+  .to(insert_Default_Config)
