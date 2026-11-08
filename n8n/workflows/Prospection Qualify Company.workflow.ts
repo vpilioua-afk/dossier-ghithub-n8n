@@ -1,4 +1,4 @@
-const gemini_Qualify_Model = languageModel({ type: '@n8n/n8n-nodes-langchain.lmChatGoogleGemini', version: 1, config: { name: 'Gemini Qualify Model', parameters: { modelName: expr('models/gemini-flash-lite-latest'), options: { temperature: 0.1 } }, credentials: { googlePalmApi: newCredential('N8N_serveur (vpilioua@eugeniaschool.com)', 'p5JovaMWcYy9FDZA') }, position: [752, 224] } });
+const gemini_Qualify_Model = languageModel({ type: '@n8n/n8n-nodes-langchain.lmChatGoogleGemini', version: 1, config: { name: 'Gemini Qualify Model', parameters: { modelName: expr('models/gemini-flash-lite-latest'), options: { temperature: 0.1 } }, credentials: { googlePalmApi: newCredential('Gemini', 'WFPYsM6Q8jr0nQqY') }, position: [752, 224] } });
 
 const company_Input = trigger({
   type: 'n8n-nodes-base.executeWorkflowTrigger',
@@ -9,13 +9,13 @@ const company_Input = trigger({
 const rate_Limit_Pause = node({
   type: 'n8n-nodes-base.wait',
   version: 1.1,
-  config: { name: 'Rate Limit Pause', parameters: { resume: 'timeInterval', amount: 7, unit: 'seconds' }, position: [120, 0], webhookId: 'adbb2532-6248-4e58-a58b-d9f7499a667d', notes: 'Waits 7 seconds before each website read to stay under the Firecrawl free plan rate limit (about 10 pages per minute).' }
+  config: { name: 'Rate Limit Pause', parameters: { resume: 'timeInterval', amount: 7, unit: 'seconds' }, position: [120, 0], webhookId: '038b08d8-7961-4b0d-a23f-1e32576c65bc', notes: 'Waits 7 seconds before each website read to stay under the Firecrawl free plan rate limit (about 10 pages per minute).' }
 });
 
 const scrape_Website = node({
   type: '@mendable/n8n-nodes-firecrawl.firecrawl',
   version: 1,
-  config: { name: 'Scrape Website', parameters: { operation: 'scrape', url: expr('https://{{ $json.domain }}'), scrapeOptions: { options: { formats: { format: [{ type: 'markdown' }] }, onlyMainContent: true, headers: {} } }, requestOptions: { timeout: 60000 } }, credentials: { firecrawlApi: newCredential('Firecrawl account', 'JfUyJB19laB9460H') }, position: [256, 0], notes: 'Reads the company homepage as markdown (Firecrawl). Errors go to the error output.', notesInFlow: true, retryOnFail: true, maxTries: 2, waitBetweenTries: 3000, onError: 'continueErrorOutput' }
+  config: { name: 'Scrape Website', parameters: { operation: 'scrape', url: expr('https://{{ $json.domain }}'), scrapeOptions: { options: { formats: { format: [{ type: 'markdown' }] }, onlyMainContent: true, headers: {} } }, requestOptions: { timeout: 60000 } }, credentials: { firecrawlApi: newCredential('Firecrawl', 'cshErFYAdnAZ0utZ') }, position: [256, 0], notes: 'Reads the company homepage as markdown (Firecrawl, n8n managed credits). Errors go to the error output.', notesInFlow: true, retryOnFail: true, maxTries: 2, waitBetweenTries: 3000, onError: 'continueErrorOutput' }
 });
 
 const scrape_Failed = node({
@@ -51,13 +51,13 @@ const is_Qualified = node({
 const find_Decision_Makers = node({
   type: 'n8n-nodes-base.hunter',
   version: 1,
-  config: { name: 'Find Decision Makers', parameters: { domain: expr('{{ $json.domain }}'), onlyEmails: false, limit: 10, filters: { type: 'personal' } }, credentials: { hunterApi: newCredential('Hunter account', 'oigYUrHupcJ01eAT') }, position: [1264, -208], notes: 'Hunter domain search: personal emails found for this domain, with names, positions and confidence.', notesInFlow: true, retryOnFail: true, maxTries: 2, alwaysOutputData: true, onError: 'continueRegularOutput' }
+  config: { name: 'Find Decision Makers', parameters: { domain: expr('{{ $json.domain }}'), onlyEmails: false, limit: 10, filters: { type: 'personal' } }, credentials: { hunterApi: newCredential('Hunter', 'QzN8V9RrD93HHDUs') }, position: [1264, -208], notes: 'Hunter domain search: personal emails found for this domain, with names, positions and confidence.', notesInFlow: true, retryOnFail: true, maxTries: 2, alwaysOutputData: true, onError: 'continueRegularOutput' }
 });
 
 const pick_Best_Contact = node({
   type: 'n8n-nodes-base.code',
   version: 2,
-  config: { name: 'Pick Best Contact', parameters: { jsCode: 'const company = $(\'Check Fit\').first().json;\nconst roles = String($(\'Company Input\').first().json.decisionMakerRoles || \'\')\n  .toLowerCase().split(\',\').map(r => r.trim()).filter(Boolean);\n\n// Hunter can return one item per email or one item with an emails array\nconst emails = [];\nfor (const item of $input.all()) {\n  const j = item.json || {};\n  if (Array.isArray(j.emails)) emails.push(...j.emails);\n  else if (j.value || j.email) emails.push(j);\n}\n\nconst scored = emails\n  .map(e => {\n    const position = String(e.position || \'\').toLowerCase();\n    let rank = 0;\n    if (roles.some(r => position.includes(r))) rank += 100;\n    if (e.seniority === \'executive\') rank += 50;\n    else if (e.seniority === \'senior\') rank += 20;\n    rank += Number(e.confidence || 0) / 10;\n    return { e, rank };\n  })\n  .filter(x => (x.e.value || x.e.email) && Number(x.e.confidence || 0) >= 70)\n  .sort((a, b) => b.rank - a.rank);\n\nif (!scored.length) {\n  return [{ json: { ...company, found: false } }];\n}\nconst best = scored[0].e;\nreturn [{ json: {\n  ...company,\n  found: true,\n  email: String(best.value || best.email).toLowerCase(),\n  contactName: [best.first_name, best.last_name].filter(Boolean).join(\' \'),\n  contactFirstName: best.first_name || \'\',\n  contactTitle: best.position || \'\'\n} }];' }, position: [1504, -208], notes: 'Chooses the best decision maker: role keywords from the config first, then seniority, then Hunter confidence (>= 70 only).', notesInFlow: true }
+  config: { name: 'Pick Best Contact', parameters: { jsCode: 'const company = $(\'Check Fit\').first().json;\nconst roles = String($(\'Company Input\').first().json.decisionMakerRoles || \'\')\n  .toLowerCase().split(\',\').map(r => r.trim()).filter(Boolean);\n\n// Hunter can return one item per email or one item with an emails array\nconst emails = [];\nlet hunterError = \'\';\nfor (const item of $input.all()) {\n  const j = item.json || {};\n  // Keep the Hunter error message (quota, invalid key) instead of a silent no_email\n  if (j.error) hunterError = String(j.error.message || j.error.description || j.error).slice(0, 200);\n  if (Array.isArray(j.emails)) emails.push(...j.emails);\n  else if (j.value || j.email) emails.push(j);\n}\n\nconst scored = emails\n  .map(e => {\n    const position = String(e.position || \'\').toLowerCase();\n    let rank = 0;\n    if (roles.some(r => position.includes(r))) rank += 100;\n    if (e.seniority === \'executive\') rank += 50;\n    else if (e.seniority === \'senior\') rank += 20;\n    rank += Number(e.confidence || 0) / 10;\n    return { e, rank };\n  })\n  .filter(x => (x.e.value || x.e.email) && Number(x.e.confidence || 0) >= 70)\n  .sort((a, b) => b.rank - a.rank);\n\nif (!scored.length) {\n  return [{ json: { ...company, found: false, hunterError } }];\n}\nconst best = scored[0].e;\nreturn [{ json: {\n  ...company,\n  found: true,\n  email: String(best.value || best.email).toLowerCase(),\n  contactName: [best.first_name, best.last_name].filter(Boolean).join(\' \'),\n  contactFirstName: best.first_name || \'\',\n  contactTitle: best.position || \'\'\n} }];' }, position: [1504, -208], notes: 'Chooses the best decision maker: role keywords from the config first, then seniority, then Hunter confidence (>= 70 only).', notesInFlow: true }
 });
 
 const has_Contact = node({
@@ -69,19 +69,19 @@ const has_Contact = node({
 const verify_Email = node({
   type: 'n8n-nodes-base.hunter',
   version: 1,
-  config: { name: 'Verify Email', parameters: { operation: 'emailVerifier', email: expr('{{ $json.email }}') }, credentials: { hunterApi: newCredential('Hunter account', 'oigYUrHupcJ01eAT') }, position: [2000, -304], notes: 'Hunter email verification. Only status valid is accepted for automatic sending.', notesInFlow: true, retryOnFail: true, maxTries: 2, onError: 'continueRegularOutput' }
+  config: { name: 'Verify Email', parameters: { operation: 'emailVerifier', email: expr('{{ $json.email }}') }, credentials: { hunterApi: newCredential('Hunter', 'QzN8V9RrD93HHDUs') }, position: [2000, -304], notes: 'Hunter email verification. Only status valid is accepted for automatic sending.', notesInFlow: true, retryOnFail: true, maxTries: 2, onError: 'continueRegularOutput' }
 });
 
 const build_Result = node({
   type: 'n8n-nodes-base.code',
   version: 2,
-  config: { name: 'Build Result', parameters: { mode: 'runOnceForEachItem', jsCode: 'const contact = $(\'Pick Best Contact\').item.json;\nconst v = $json.data || $json;\nconst emailStatus = String(v.status || v.result || \'unknown\').toLowerCase();\nconst valid = emailStatus === \'valid\' || emailStatus === \'deliverable\';\nreturn { json: {\n  ...contact,\n  emailStatus,\n  success: true,\n  status: valid ? \'ready\' : \'no_email\',\n  reason: valid ? contact.reason : `Email non verifie (${emailStatus})`\n} };' }, position: [2256, -304], notes: 'Final contract for the caller. status = ready only when the email is verified valid; otherwise no_email.', notesInFlow: true }
+  config: { name: 'Build Result', parameters: { mode: 'runOnceForEachItem', jsCode: 'const contact = $(\'Pick Best Contact\').item.json;\nconst v = $json.data || $json;\nconst verifyError = $json.error ? String($json.error.message || $json.error).slice(0, 200) : \'\';\nconst emailStatus = String(v.status || v.result || \'unknown\').toLowerCase();\nconst valid = emailStatus === \'valid\' || emailStatus === \'deliverable\';\nreturn { json: {\n  ...contact,\n  emailStatus,\n  success: true,\n  status: valid ? \'ready\' : \'no_email\',\n  reason: valid ? contact.reason : (verifyError ? `Erreur Hunter (verification) : ${verifyError}` : `Email non verifie (${emailStatus})`)\n} };' }, position: [2256, -304], notes: 'Final contract for the caller. status = ready only when the email is verified valid; otherwise no_email.', notesInFlow: true }
 });
 
 const no_Contact = node({
   type: 'n8n-nodes-base.set',
   version: 3.5,
-  config: { name: 'No Contact', parameters: { assignments: { assignments: [{ id: 'nc-success', name: 'success', value: true, type: 'boolean' }, { id: 'nc-status', name: 'status', value: 'no_email', type: 'string' }, { id: 'nc-reason', name: 'reason', value: 'Aucun email de decideur fiable', type: 'string' }] }, includeOtherFields: true, options: {} }, position: [2000, -48] }
+  config: { name: 'No Contact', parameters: { assignments: { assignments: [{ id: 'nc-success', name: 'success', value: true, type: 'boolean' }, { id: 'nc-status', name: 'status', value: 'no_email', type: 'string' }, { id: 'nc-reason', name: 'reason', value: expr('{{ $json.hunterError ? \'Erreur Hunter : \' + $json.hunterError : \'Aucun email de decideur fiable\' }}'), type: 'string' }] }, includeOtherFields: true, options: {} }, position: [2000, -48] }
 });
 
 const not_Qualified = node({
@@ -90,7 +90,7 @@ const not_Qualified = node({
   config: { name: 'Not Qualified', parameters: { assignments: { assignments: [{ id: 'nq-success', name: 'success', value: true, type: 'boolean' }, { id: 'nq-status', name: 'status', value: 'not_qualified', type: 'string' }] }, includeOtherFields: true, options: {} }, position: [1264, 64] }
 });
 
-const wf = workflow('oM4lkVheJTNbBExf', 'Prospection Qualify Company', { executionOrder: 'v1', binaryMode: 'separate', availableInMCP: true, description: 'Sub-workflow: reads a company website, qualifies it against the target with AI, then finds and verifies a decision maker email with Hunter.' });
+const wf = workflow('hucsb2v3iIwKWs40', 'Prospection Qualify Company', { executionOrder: 'v1', binaryMode: 'separate', availableInMCP: true, description: 'Sub-workflow: reads a company website, qualifies it against the target with AI, then finds and verifies a decision maker email with Hunter.', timezone: 'Europe/Paris' });
 
 export default wf
   .add(sticky('## Qualifier une entreprise (sous-workflow)\nEntree : un domaine + la config de ciblage.\nSortie : `status` = **ready** (email verifie), **not_qualified**, **no_email** ou **error**.\n\nCredentials a brancher : **Firecrawl** (cle API), **Hunter** (cle API gratuite).', [], { name: 'Sticky Note', color: 2, width: 560, height: 220, position: [0, -400] }))

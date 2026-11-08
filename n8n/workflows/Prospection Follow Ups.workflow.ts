@@ -31,7 +31,7 @@ const select_Due = node({
 const get_Thread = node({
   type: 'n8n-nodes-base.gmail',
   version: 2.2,
-  config: { name: 'Get Thread', parameters: { resource: 'thread', operation: 'get', threadId: expr('{{ $json.threadId }}'), simple: true, options: { returnOnlyMessages: true } }, credentials: { gmailOAuth2: newCredential('Gmail account', 'LquVAVB8bNdpx5bk') }, position: [1080, -20], webhookId: '9d65672f-01ae-41b5-8784-e9c2203f3900', notes: 'Reads the Gmail conversation to detect a reply, an opt-out or a bounce before following up.', notesInFlow: true, retryOnFail: true, maxTries: 2, onError: 'continueRegularOutput' }
+  config: { name: 'Get Thread', parameters: { resource: 'thread', operation: 'get', threadId: expr('{{ $json.threadId }}'), simple: true, options: { returnOnlyMessages: true } }, position: [1080, -20], webhookId: '3321f814-76e6-4889-953a-da21c1cd1515', notes: 'Reads the Gmail conversation to detect a reply, an opt-out or a bounce before following up.', notesInFlow: true, retryOnFail: true, maxTries: 2, onError: 'continueRegularOutput' }
 });
 
 const detect_Reply = node({
@@ -49,7 +49,7 @@ const needs_Follow_Up = node({
 const send_Follow_Up = node({
   type: 'n8n-nodes-base.gmail',
   version: 2.2,
-  config: { name: 'Send Follow Up', parameters: { resource: 'message', operation: 'reply', messageId: expr('{{ $json.lastMessageId }}'), emailType: 'text', message: expr('{{ $json.step === 1 ? $json.followUp1 : $json.followUp2 }}'), options: { appendAttribution: false, replyToSenderOnly: false, senderName: expr('{{ $(\'Load Config\').first().json.senderName }}'), ccList: expr('{{ $json.testMode ? $json.sentTo : \'\' }}') } }, credentials: { gmailOAuth2: newCredential('Gmail account', 'LquVAVB8bNdpx5bk') }, position: [1720, -120], webhookId: '384885d8-353a-49d2-8257-187f53ed6da4', notes: 'Replies in the same Gmail thread. In test mode the follow-up is copied to testEmail, since Gmail drops your own address from reply recipients.', notesInFlow: true, retryOnFail: true, maxTries: 2, waitBetweenTries: 5000, onError: 'continueErrorOutput' }
+  config: { name: 'Send Follow Up', parameters: { resource: 'message', operation: 'reply', messageId: expr('{{ $json.lastMessageId }}'), emailType: 'text', message: expr('{{ $json.step === 1 ? $json.followUp1 : $json.followUp2 }}'), options: { appendAttribution: false, replyToSenderOnly: false, senderName: expr('{{ $(\'Load Config\').first().json.senderName }}'), ccList: expr('{{ $json.testMode ? $json.sentTo : \'\' }}') } }, position: [1720, -120], webhookId: '076e6724-bcc8-4038-9d01-04a92065c12b', notes: 'Replies in the same Gmail thread. In test mode the follow-up is copied to testEmail, since Gmail drops your own address from reply recipients.', notesInFlow: true, retryOnFail: true, maxTries: 2, waitBetweenTries: 5000, onError: 'continueErrorOutput' }
 });
 
 const prepare_Follow_Up_Update = node({
@@ -82,7 +82,7 @@ const manual_Test_Run = trigger({
   config: { name: 'Manual Test Run', position: [0, 60] }
 });
 
-const wf = workflow('Php3N99uXUeNun6Q', 'Prospection Follow Ups', { executionOrder: 'v1', binaryMode: 'separate', availableInMCP: true, description: 'Daily follow-ups: stops the sequence on reply, opt-out or bounce, otherwise sends follow-up 1 at day 3 and follow-up 2 at day 7 in the same Gmail thread.' });
+const wf = workflow('DSGLETXRqVHpub1X', 'Prospection Follow Ups', { executionOrder: 'v1', binaryMode: 'separate', availableInMCP: true, description: 'Daily follow-ups: stops the sequence on reply, opt-out or bounce, otherwise sends follow-up 1 at day 3 and follow-up 2 at day 7 in the same Gmail thread.' });
 
 export default wf
   .add(sticky('## Relances (J+3, J+7)\nChaque jour a 10 h : pour chaque sequence ouverte, lecture du fil Gmail.\n- Reponse, STOP ou rebond : sequence close, plus jamais contacte.\n- Sinon : relance 1 a J+3, relance 2 a J+7 (textes ecrits a J0, aucun appel IA ici).\n\nCredential : **Gmail**.', [], { name: 'Sticky Note', color: 2, width: 600, height: 240, position: [0, -400] }))
